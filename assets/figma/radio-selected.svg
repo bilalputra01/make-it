@@ -1,0 +1,7 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Radio &#194;&#183; selected">
+<rect x="0.75" y="0.75" width="18.5" height="18.5" rx="9.25" fill="#F1ECEC"/>
+<rect x="0.75" y="0.75" width="18.5" height="18.5" rx="9.25" stroke="#09090B" stroke-width="1.5"/>
+<circle id="Radio selected dot" cx="10" cy="10" r="5" fill="black"/>
+</g>
+</svg>
