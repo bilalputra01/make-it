@@ -1,9 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:make_it/main.dart';
+import 'package:make_it/widgets/task_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  testWidgets('keeps new label form above the keyboard', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(360, 640);
+
+    await tester.pumpWidget(const MakeItApp());
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Tulis tugas baru'));
+    await tester.tap(find.text('Tulis tugas baru'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Buat label baru'));
+    await tester.tap(find.text('Buat label baru'));
+    await tester.pumpAndSettle();
+
+    final nameField = find.byKey(const ValueKey('new-label-name'));
+    await tester.tap(nameField);
+    await tester.showKeyboard(nameField);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 270);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(nameField, findsOneWidget);
+    await tester.enterText(nameField, 'Terlihat');
+    await tester.ensureVisible(find.byKey(const ValueKey('save-label')));
+    expect(
+      tester.getBottomRight(find.byKey(const ValueKey('save-label'))).dy,
+      lessThanOrEqualTo(370),
+    );
+
+    tester.view.resetViewInsets();
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
+
   testWidgets('layouts adapt to phone, tablet, and desktop sizes', (
     WidgetTester tester,
   ) async {
@@ -21,6 +58,7 @@ void main() {
       await tester.pumpWidget(const MakeItApp());
       await tester.pumpAndSettle();
       expect(find.text('MENDATANG'), findsOneWidget);
+      expect(find.text('Bales dosen pembimbing'), findsNothing);
 
       final addTaskButton = find.text('Tulis tugas baru');
       await tester.ensureVisible(addTaskButton);
@@ -59,7 +97,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('MENDATANG'), findsOneWidget);
-    expect(find.text('70%'), findsNothing);
+    expect(find.text('Bales dosen pembimbing'), findsNothing);
+    expect(find.text('Belum ada tugas.'), findsOneWidget);
 
     await tester.tap(find.text('Tulis tugas baru'));
     await tester.pumpAndSettle();
@@ -98,18 +137,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Pilih tanggal'), findsOneWidget);
     expect(find.text('Gunakan tanggal'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('calendar-next-month')));
-    await tester.pumpAndSettle();
     final today = DateUtils.dateOnly(DateTime.now());
-    final tomorrow = today.add(const Duration(days: 1));
-    if (tomorrow.month == today.month) {
-      await tester.tap(find.byKey(const ValueKey('calendar-previous-month')));
-      await tester.pumpAndSettle();
-    }
+    final selectedDate = today;
     await tester.tap(
       find.byKey(
         ValueKey(
-          'calendar-day-${tomorrow.year}-${tomorrow.month}-${tomorrow.day}',
+          'calendar-day-${selectedDate.year}-${selectedDate.month}-${selectedDate.day}',
         ),
       ),
     );
@@ -129,8 +162,12 @@ void main() {
 
     expect(find.text('Tes tugas baru'), findsOneWidget);
 
-    await tester.ensureVisible(find.byKey(const ValueKey('task-toggle-1')));
-    await tester.tap(find.byKey(const ValueKey('task-toggle-1')));
+    final createdTask = tester.widgetList<TaskCard>(find.byType(TaskCard)).last;
+    final taskToggle = find.byKey(
+      ValueKey('task-toggle-${createdTask.task.id}'),
+    );
+    await tester.ensureVisible(taskToggle);
+    await tester.tap(taskToggle);
     await tester.pumpAndSettle();
 
     expect(find.text('100%'), findsOneWidget);
@@ -143,7 +180,7 @@ void main() {
     expect(
       savedTasks,
       contains(
-        '"dueDate":"${tomorrow.toIso8601String().split('T').first}T00:00:00.000"',
+        '"dueDate":"${today.toIso8601String().split('T').first}T00:00:00.000"',
       ),
     );
     final savedLabels = preferences.getString('make_it_labels');

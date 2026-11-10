@@ -104,36 +104,3 @@ class Task {
     }
   }
 }
-
-// Sample data
-class SampleData {
-  static const labelKuliah = TaskLabel(name: 'Kuliah', colorValue: 0xFF4CAF50);
-  static const labelKerja = TaskLabel(name: 'Kerja', colorValue: 0xFF2196F3);
-  static const labelSkripsi = TaskLabel(
-    name: 'Skripsi',
-    colorValue: 0xFFFF9800,
-  );
-
-  static final List<Task> todayTasks = [
-    Task(
-      id: '1',
-      title: 'Bales dosen pembimbing',
-      label: labelKuliah,
-      durationMinutes: 25,
-      priority: TaskPriority.high,
-    ),
-  ];
-
-  static final List<Task> upcomingTasks = [
-    Task(
-      id: '4',
-      title: 'Bales dosen pembimbing',
-      label: labelKuliah,
-      durationMinutes: 25,
-      priority: TaskPriority.high,
-      schedule: TaskSchedule.upcoming,
-    ),
-  ];
-
-  static List<Task> get initialTasks => [...todayTasks, ...upcomingTasks];
-}

@@ -76,7 +76,7 @@ class _TaskHomeScreenState extends State<TaskHomeScreen> {
       final savedTasks = preferences.getString(_storageKey);
       final savedLabels = preferences.getString(_labelStorageKey);
       final loadedTasks = savedTasks == null
-          ? SampleData.initialTasks
+          ? <Task>[]
           : _decodeTasks(savedTasks);
       final loadedLabels = savedLabels == null
           ? CreateTaskSheet.defaultLabels

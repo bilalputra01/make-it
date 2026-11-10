@@ -115,16 +115,21 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         final size = MediaQuery.sizeOf(context);
-        final availableHeight =
-            size.height - MediaQuery.viewInsetsOf(context).bottom;
+        final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
+        final availableHeight = size.height - keyboardHeight;
         return Align(
-          alignment: Alignment.bottomCenter,
-          child: SizedBox(
-            height: availableHeight < 401 ? availableHeight : 401,
-            width: size.width < 420 ? size.width : 420,
-            child: CreateLabelSheet(
-              existingLabels: _labels,
-              colors: _labelColors,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: keyboardHeight),
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: SizedBox(
+                height: availableHeight < 401 ? availableHeight : 401,
+                width: size.width < 420 ? size.width : 420,
+                child: CreateLabelSheet(
+                  existingLabels: _labels,
+                  colors: _labelColors,
+                ),
+              ),
             ),
           ),
         );
