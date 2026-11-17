@@ -13,6 +13,8 @@ class TaskSection extends StatelessWidget {
   final bool isExpanded;
   final VoidCallback? onToggleExpand;
   final Function(Task)? onTaskToggle;
+  final ValueChanged<Task>? onTaskEdit;
+  final ValueChanged<Task>? onTaskDelete;
   final VoidCallback? onAddTask;
 
   const TaskSection({
@@ -25,6 +27,8 @@ class TaskSection extends StatelessWidget {
     this.isExpanded = true,
     this.onToggleExpand,
     this.onTaskToggle,
+    this.onTaskEdit,
+    this.onTaskDelete,
     this.onAddTask,
   });
 
@@ -62,6 +66,8 @@ class TaskSection extends StatelessWidget {
               TaskCard(
                 task: tasks[index],
                 onToggle: () => onTaskToggle?.call(tasks[index]),
+                onEdit: () => onTaskEdit?.call(tasks[index]),
+                onDelete: () => onTaskDelete?.call(tasks[index]),
               ),
               if (index < tasks.length - 1 || showInput)
                 const SizedBox(height: 8),

@@ -12,6 +12,7 @@ import '../widgets/progress_bar.dart';
 import '../widgets/task_card.dart';
 import '../widgets/task_section.dart';
 import 'create_task_sheet.dart';
+import 'focus_mode_screen.dart';
 
 class TaskHomeScreen extends StatefulWidget {
   const TaskHomeScreen({super.key});
@@ -29,6 +30,7 @@ class _TaskHomeScreenState extends State<TaskHomeScreen> {
   final List<TaskLabel> _labels = [...CreateTaskSheet.defaultLabels];
   bool _isLoading = true;
   String? _loadError;
+  bool _isFocusSessionStarted = false;
   bool _kapanSajaExpanded = false;
   bool _selesaiExpanded = false;
 
@@ -199,7 +201,14 @@ class _TaskHomeScreenState extends State<TaskHomeScreen> {
   }
 
   Future<void> _showAddTaskDialog() async {
-    final task = await showDialog<Task>(
+    final task = await _showTaskDialog();
+    if (task == null || !mounted) return;
+    setState(() => _tasks.add(task));
+    _saveTasks();
+  }
+
+  Future<Task?> _showTaskDialog({Task? initialTask}) {
+    return showDialog<Task>(
       context: context,
       barrierColor: Colors.black54,
       builder: (context) {
@@ -214,14 +223,47 @@ class _TaskHomeScreenState extends State<TaskHomeScreen> {
             height: (size.height - viewInsets.bottom - 32)
                 .clamp(0, 820)
                 .toDouble(),
-            child: CreateTaskSheet(labels: _labels, onLabelCreated: _addLabel),
+            child: CreateTaskSheet(
+              labels: _labels,
+              onLabelCreated: _addLabel,
+              initialTask: initialTask,
+            ),
           ),
         );
       },
     );
+  }
 
-    if (task == null || !mounted) return;
-    setState(() => _tasks.add(task));
+  Future<void> _editTask(Task task) async {
+    final updatedTask = await _showTaskDialog(initialTask: task);
+    if (updatedTask == null || !mounted) return;
+    final index = _tasks.indexWhere((item) => item.id == task.id);
+    if (index == -1) return;
+    setState(() => _tasks[index] = updatedTask);
+    _saveTasks();
+  }
+
+  Future<void> _confirmDeleteTask(Task task) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus tugas?'),
+        content: Text('Tugas "${task.title}" akan dihapus.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            key: ValueKey('confirm-delete-task-${task.id}'),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (shouldDelete != true || !mounted) return;
+    setState(() => _tasks.removeWhere((item) => item.id == task.id));
     _saveTasks();
   }
 
@@ -246,7 +288,12 @@ class _TaskHomeScreenState extends State<TaskHomeScreen> {
     return Column(
       children: tasks
           .map(
-            (task) => TaskCard(task: task, onToggle: () => _toggleTask(task)),
+            (task) => TaskCard(
+              task: task,
+              onToggle: () => _toggleTask(task),
+              onEdit: () => _editTask(task),
+              onDelete: () => _confirmDeleteTask(task),
+            ),
           )
           .toList(),
     );
@@ -296,17 +343,32 @@ class _TaskHomeScreenState extends State<TaskHomeScreen> {
                                   )
                                 : _loadError != null
                                 ? _buildLoadError()
-                                : _buildTaskList(),
+                                : IndexedStack(
+                                    index: _currentNavIndex == 1 ? 1 : 0,
+                                    children: [
+                                      _buildTaskList(),
+                                      FocusModeScreen(
+                                        key: const ValueKey('focus-mode'),
+                                        tasks: _tasks,
+                                        onSessionStartedChanged: (started) {
+                                          setState(() {
+                                            _isFocusSessionStarted = started;
+                                          });
+                                        },
+                                      ),
+                                    ],
+                                  ),
                           ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                            child: BottomNavBar(
-                              currentIndex: _currentNavIndex,
-                              onTap: (index) {
-                                setState(() => _currentNavIndex = index);
-                              },
+                          if (!_isFocusSessionStarted)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                              child: BottomNavBar(
+                                currentIndex: _currentNavIndex,
+                                onTap: (index) {
+                                  setState(() => _currentNavIndex = index);
+                                },
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ),
@@ -402,6 +464,8 @@ class _TaskHomeScreenState extends State<TaskHomeScreen> {
       tasks: _todayTasks,
       showInput: true,
       onTaskToggle: _toggleTask,
+      onTaskEdit: _editTask,
+      onTaskDelete: _confirmDeleteTask,
       onAddTask: _showAddTaskDialog,
     );
   }
@@ -412,6 +476,8 @@ class _TaskHomeScreenState extends State<TaskHomeScreen> {
       count: _upcomingTasks.length,
       tasks: _upcomingTasks,
       onTaskToggle: _toggleTask,
+      onTaskEdit: _editTask,
+      onTaskDelete: _confirmDeleteTask,
     );
   }
 

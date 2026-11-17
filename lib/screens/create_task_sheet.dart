@@ -14,11 +14,13 @@ class CreateTaskSheet extends StatefulWidget {
 
   final List<TaskLabel> labels;
   final ValueChanged<TaskLabel> onLabelCreated;
+  final Task? initialTask;
 
   const CreateTaskSheet({
     super.key,
     required this.labels,
     required this.onLabelCreated,
+    this.initialTask,
   });
 
   @override
@@ -52,13 +54,26 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
   TaskPriority _priority = TaskPriority.high;
   int _durationMinutes = 25;
   DateTime? _dueDate;
+  bool _dateChanged = false;
   bool _showTitleError = false;
 
   @override
   void initState() {
     super.initState();
     _labels = [...widget.labels];
-    _selectedLabel = _labels.first;
+    final initialTask = widget.initialTask;
+    if (initialTask != null &&
+        !_labels.any((label) => label.name == initialTask.label.name)) {
+      _labels.add(initialTask.label);
+    }
+    _selectedLabel = initialTask == null
+        ? _labels.first
+        : _labels.firstWhere((label) => label.name == initialTask.label.name);
+    _titleController.text = initialTask?.title ?? '';
+    _priority = initialTask?.priority ?? TaskPriority.high;
+    _durationMinutes = initialTask?.durationMinutes ?? 25;
+    _dueDate = initialTask?.dueDate;
+    _repeatDays.addAll(initialTask?.repeatDays ?? const []);
   }
 
   @override
@@ -99,7 +114,12 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
         );
       },
     );
-    if (date != null && mounted) setState(() => _dueDate = date);
+    if (date != null && mounted) {
+      setState(() {
+        _dueDate = date;
+        _dateChanged = true;
+      });
+    }
   }
 
   int _calendarRowsFor(DateTime date) {
@@ -159,16 +179,22 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
         (dueDate.year == now.year &&
             dueDate.month == now.month &&
             dueDate.day == now.day);
+    final initialTask = widget.initialTask;
 
     Navigator.pop(
       context,
       Task(
-        id: now.microsecondsSinceEpoch.toString(),
+        id: initialTask?.id ?? now.microsecondsSinceEpoch.toString(),
         title: title,
         label: _selectedLabel,
         durationMinutes: _durationMinutes,
         priority: _priority,
-        schedule: isDueToday ? TaskSchedule.today : TaskSchedule.upcoming,
+        isCompleted: initialTask?.isCompleted ?? false,
+        schedule: initialTask != null && !_dateChanged
+            ? initialTask.schedule
+            : isDueToday
+            ? TaskSchedule.today
+            : TaskSchedule.upcoming,
         dueDate: dueDate,
         repeatDays: _repeatDays.toList()..sort(),
       ),
@@ -189,9 +215,9 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Buat tugas',
-              style: TextStyle(
+            Text(
+              widget.initialTask == null ? 'Buat tugas' : 'Edit tugas',
+              style: const TextStyle(
                 color: Color(0xFF09090B),
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -279,8 +305,10 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
                   foregroundColor: Colors.white,
                   shape: const StadiumBorder(),
                 ),
-                child: const Text(
-                  'Simpan target',
+                child: Text(
+                  widget.initialTask == null
+                      ? 'Simpan target'
+                      : 'Simpan perubahan',
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                 ),
               ),

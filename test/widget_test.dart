@@ -5,6 +5,180 @@ import 'package:make_it/widgets/task_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  testWidgets('focus mode starts and lets the user switch tasks', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(360, 800);
+    await tester.pumpWidget(const MakeItApp());
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Tulis tugas baru'));
+    await tester.tap(find.text('Tulis tugas baru'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('new-task-title')),
+      'Tugas fokus',
+    );
+    await tester.ensureVisible(find.byKey(const ValueKey('save-task')));
+    await tester.tap(find.byKey(const ValueKey('save-task')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Fokus'));
+    await tester.pumpAndSettle();
+    expect(find.text('Dengan tugas'), findsOneWidget);
+    expect(find.text('Fokus bebas'), findsOneWidget);
+    expect(find.text('Tugas fokus'), findsOneWidget);
+    expect(find.byKey(const ValueKey('focus-minutes')), findsOneWidget);
+    expect(find.text('Ganti tugas'), findsWidgets);
+
+    await tester.tap(find.byKey(const ValueKey('focus-task-selector')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('focus-task-picker-title')),
+      findsOneWidget,
+    );
+    expect(find.text('Tugas fokus'), findsWidgets);
+
+    final taskId = tester
+        .widget<TaskCard>(find.byType(TaskCard, skipOffstage: false).first)
+        .task
+        .id;
+    await tester.enterText(
+      find.byKey(const ValueKey('focus-task-search')),
+      'Tugas fokus',
+    );
+    await tester.tap(find.byKey(ValueKey('focus-task-option-$taskId')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('confirm-focus-task')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('confirm-focus-task')));
+    await tester.pumpAndSettle();
+    expect(find.text('Tugas fokus'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('focus-duration-10')));
+    await tester.pumpAndSettle();
+    expect(find.text('10'), findsWidgets);
+
+    await tester.tap(find.byKey(const ValueKey('focus-free-mode')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('focus-task-selector')), findsNothing);
+    expect(find.byKey(const ValueKey('change-focus-task')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('focus-with-task-mode')));
+
+    await tester.tap(find.byKey(const ValueKey('focus-start')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('focus-running-screen')), findsOneWidget);
+    expect(find.byKey(const ValueKey('focus-pause-action')), findsNothing);
+    expect(find.bySemanticsLabel('Tugas'), findsNothing);
+
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.byKey(const ValueKey('focus-timer-display')));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('focus-timer-paused')), findsOneWidget);
+    expect(find.byKey(const ValueKey('focus-pause-action')), findsOneWidget);
+    final pausedSeconds = tester
+        .widget<Text>(find.byKey(const ValueKey('focus-running-seconds')))
+        .data;
+    await tester.pump(const Duration(seconds: 2));
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('focus-running-seconds')))
+          .data,
+      pausedSeconds,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('focus-pause-action')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('focus-timer-running')), findsOneWidget);
+    expect(find.byKey(const ValueKey('focus-pause-action')), findsNothing);
+
+    final timerDisplay = find.byKey(const ValueKey('focus-timer-display'));
+    final timerPosition = tester.getCenter(timerDisplay);
+    final firstTap = await tester.startGesture(timerPosition);
+    await firstTap.up();
+    await tester.pump(const Duration(milliseconds: 50));
+    final secondTap = await tester.startGesture(timerPosition);
+    await secondTap.up();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('focus-running-screen')), findsNothing);
+    expect(find.byKey(const ValueKey('focus-paused-minutes')), findsOneWidget);
+    expect(find.byKey(const ValueKey('focus-paused-seconds')), findsOneWidget);
+    expect(find.byKey(const ValueKey('focus-resume-action')), findsOneWidget);
+    expect(find.bySemanticsLabel('Tugas'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('focus-resume-action')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('focus-running-screen')), findsOneWidget);
+    expect(find.bySemanticsLabel('Tugas'), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
+
+  testWidgets('edits and deletes tasks from the task menu', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(const MakeItApp());
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Tulis tugas baru'));
+    await tester.tap(find.text('Tulis tugas baru'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('new-task-title')),
+      'Tugas awal',
+    );
+    await tester.ensureVisible(find.byKey(const ValueKey('save-task')));
+    await tester.tap(find.byKey(const ValueKey('save-task')));
+    await tester.pumpAndSettle();
+
+    final taskId = tester.widget<TaskCard>(find.byType(TaskCard).first).task.id;
+
+    expect(
+      tester
+          .widget<PopupMenuButton<String>>(
+            find.byKey(ValueKey('task-menu-$taskId')),
+          )
+          .color,
+      Colors.white,
+    );
+    await tester.ensureVisible(find.byKey(ValueKey('task-menu-$taskId')));
+    await tester.tap(find.byKey(ValueKey('task-menu-$taskId')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('edit-task-action')));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('new-task-title')))
+          .controller
+          ?.text,
+      'Tugas awal',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('new-task-title')),
+      'Tugas diperbarui',
+    );
+    await tester.ensureVisible(find.byKey(const ValueKey('save-task')));
+    await tester.tap(find.byKey(const ValueKey('save-task')));
+    await tester.pumpAndSettle();
+    expect(find.text('Tugas diperbarui'), findsOneWidget);
+    expect(find.text('Tugas awal'), findsNothing);
+
+    await tester.ensureVisible(find.byKey(ValueKey('task-menu-$taskId')));
+    await tester.tap(find.byKey(ValueKey('task-menu-$taskId')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('delete-task-action')));
+    await tester.pumpAndSettle();
+    expect(find.text('Hapus tugas?'), findsOneWidget);
+    await tester.tap(find.byKey(ValueKey('confirm-delete-task-$taskId')));
+    await tester.pumpAndSettle();
+    expect(find.text('Tugas diperbarui'), findsNothing);
+  });
+
   testWidgets('keeps new label form above the keyboard', (
     WidgetTester tester,
   ) async {
@@ -20,6 +194,16 @@ void main() {
     await tester.ensureVisible(find.text('Buat label baru'));
     await tester.tap(find.text('Buat label baru'));
     await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('label-swatch-purple-selected')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('label-color-3')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('label-swatch-purple-unselected')),
+      findsOneWidget,
+    );
 
     final nameField = find.byKey(const ValueKey('new-label-name'));
     await tester.tap(nameField);

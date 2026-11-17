@@ -8,8 +8,17 @@ class TaskCard extends StatelessWidget {
   final Task task;
   final VoidCallback? onTap;
   final VoidCallback? onToggle;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
-  const TaskCard({super.key, required this.task, this.onTap, this.onToggle});
+  const TaskCard({
+    super.key,
+    required this.task,
+    this.onTap,
+    this.onToggle,
+    this.onEdit,
+    this.onDelete,
+  });
 
   String? get _labelAsset {
     switch (task.label.name.toLowerCase()) {
@@ -150,6 +159,44 @@ class TaskCard extends StatelessWidget {
                       color: _priorityColor(task.priority),
                     ),
                   ),
+                ),
+                PopupMenuButton<String>(
+                  key: ValueKey('task-menu-${task.id}'),
+                  tooltip: 'Aksi ${task.title}',
+                  padding: EdgeInsets.zero,
+                  iconSize: 20,
+                  color: Colors.white,
+                  onSelected: (action) {
+                    if (action == 'edit') {
+                      onEdit?.call();
+                    } else if (action == 'delete') {
+                      onDelete?.call();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      key: ValueKey('edit-task-action'),
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit_outlined, size: 18),
+                          SizedBox(width: 10),
+                          Text('Edit'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      key: ValueKey('delete-task-action'),
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_outline, size: 18),
+                          SizedBox(width: 10),
+                          Text('Hapus'),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

@@ -19,7 +19,7 @@ class CreateLabelSheet extends StatefulWidget {
 
 class _CreateLabelSheetState extends State<CreateLabelSheet> {
   static const _swatchAssets = [
-    'assets/figma/new-label-purple-selected.svg',
+    'assets/figma/new-label-color-purple.svg',
     'assets/figma/new-label-color-green.svg',
     'assets/figma/new-label-color-orange.svg',
     'assets/figma/new-label-color-blue.svg',
@@ -222,13 +222,7 @@ class _CreateLabelSheetState extends State<CreateLabelSheet> {
                                   width: isSelected ? 38 : 28,
                                   height: 38,
                                   child: Center(
-                                    child: isSelected && index == 0
-                                        ? SvgPicture.asset(
-                                            _swatchAssets[index],
-                                            width: 38,
-                                            height: 38,
-                                          )
-                                        : isSelected
+                                    child: isSelected
                                         ? Container(
                                             width: 38,
                                             height: 38,
@@ -242,12 +236,22 @@ class _CreateLabelSheetState extends State<CreateLabelSheet> {
                                             ),
                                             child: SvgPicture.asset(
                                               _swatchAssets[index],
+                                              key: index == 0
+                                                  ? const ValueKey(
+                                                      'label-swatch-purple-selected',
+                                                    )
+                                                  : null,
                                               width: 28,
                                               height: 28,
                                             ),
                                           )
                                         : SvgPicture.asset(
                                             _swatchAssets[index],
+                                            key: index == 0
+                                                ? const ValueKey(
+                                                    'label-swatch-purple-unselected',
+                                                  )
+                                                : null,
                                             width: 28,
                                             height: 28,
                                           ),
