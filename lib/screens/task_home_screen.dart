@@ -11,6 +11,7 @@ import '../widgets/collapsible_section.dart';
 import '../widgets/progress_bar.dart';
 import '../widgets/task_card.dart';
 import '../widgets/task_section.dart';
+import 'calendar_screen.dart';
 import 'create_task_sheet.dart';
 import 'focus_mode_screen.dart';
 
@@ -344,7 +345,7 @@ class _TaskHomeScreenState extends State<TaskHomeScreen> {
                                 : _loadError != null
                                 ? _buildLoadError()
                                 : IndexedStack(
-                                    index: _currentNavIndex == 1 ? 1 : 0,
+                                    index: _currentNavIndex,
                                     children: [
                                       _buildTaskList(),
                                       FocusModeScreen(
@@ -355,6 +356,12 @@ class _TaskHomeScreenState extends State<TaskHomeScreen> {
                                             _isFocusSessionStarted = started;
                                           });
                                         },
+                                      ),
+                                      CalendarScreen(
+                                        tasks: _tasks,
+                                        onTaskToggle: _toggleTask,
+                                        onTaskEdit: _editTask,
+                                        onTaskDelete: _confirmDeleteTask,
                                       ),
                                     ],
                                   ),

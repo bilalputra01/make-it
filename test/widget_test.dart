@@ -1,10 +1,251 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:make_it/main.dart';
+import 'package:make_it/models/task.dart';
+import 'package:make_it/screens/calendar_screen.dart';
 import 'package:make_it/widgets/task_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  testWidgets('calendar reflects completed user tasks across periods', (
+    WidgetTester tester,
+  ) async {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final calendarTask = Task(
+      id: 'calendar-task',
+      title: 'Tugas kalender',
+      label: const TaskLabel(name: 'Kuliah', colorValue: 0xFF6F9A7E),
+      durationMinutes: 45,
+      priority: TaskPriority.medium,
+      isCompleted: true,
+      dueDate: today,
+    );
+    SharedPreferences.setMockInitialValues({
+      'make_it_tasks': jsonEncode([calendarTask.toJson()]),
+    });
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(360, 800);
+
+    await tester.pumpWidget(const MakeItApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('Kalender').last);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('calendar-screen')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('calendar-month-heading')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Estimasi durasi tugas yang selesai minggu ini'),
+      findsOneWidget,
+    );
+    expect(find.text('45 m'), findsWidgets);
+
+    await tester.tap(find.byKey(const ValueKey('calendar-view-month')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Estimasi durasi tugas yang selesai bulan ini'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('calendar-month-heatmap')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('calendar-month-week-labels')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        ValueKey(
+          'calendar-heatmap-day-${today.year}-${today.month}-${today.day}',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('calendar-month-log')), findsOneWidget);
+    expect(find.text('Total 45 m'), findsOneWidget);
+
+    final firstOfMonth = DateTime(today.year, today.month);
+    await tester.tap(
+      find.byKey(
+        ValueKey(
+          'calendar-heatmap-day-${firstOfMonth.year}-'
+          '${firstOfMonth.month}-${firstOfMonth.day}',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    const weekdayNames = [
+      'Senin',
+      'Selasa',
+      'Rabu',
+      'Kamis',
+      'Jumat',
+      'Sabtu',
+      'Minggu',
+    ];
+    const monthNames = [
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
+    ];
+    expect(
+      find.text(
+        '${weekdayNames[firstOfMonth.weekday - 1]}, '
+        '1 ${monthNames[firstOfMonth.month - 1]}',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.byKey(
+        ValueKey(
+          'calendar-heatmap-day-${today.year}-${today.month}-${today.day}',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Tugas kalender'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('calendar-view-year')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Estimasi durasi tugas yang selesai tahun ini'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('1 hari aktif lebih banyak dari periode sama tahun lalu'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('calendar-year-heatmaps')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(ValueKey('calendar-year-month-${today.month}')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('calendar-year-best-month')),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.byKey(
+        ValueKey(
+          'calendar-year-heatmap-day-${today.year}-${today.month}-${today.day}',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Estimasi durasi tugas yang selesai bulan ini'),
+      findsOneWidget,
+    );
+    expect(find.text('Tugas kalender'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Tugas kalender'));
+    expect(find.text('Tugas kalender'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    for (final size in [
+      const Size(360, 800),
+      const Size(280, 640),
+      const Size(568, 320),
+      const Size(768, 1024),
+      const Size(1440, 900),
+    ]) {
+      tester.view.physicalSize = size;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CalendarScreen(
+              tasks: [calendarTask],
+              onTaskToggle: (_) {},
+              onTaskEdit: (_) {},
+              onTaskDelete: (_) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('calendar-view-month')));
+      await tester.pumpAndSettle();
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'Monthly layout failed at $size',
+      );
+      await tester.tap(find.byKey(const ValueKey('calendar-view-year')));
+      await tester.pumpAndSettle();
+      final layoutException = tester.takeException();
+      expect(layoutException, isNull, reason: 'Yearly layout failed at $size');
+    }
+
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
+
+  testWidgets('calendar label filter uses the requested colors', (
+    WidgetTester tester,
+  ) async {
+    final task = Task(
+      id: 'filter-task',
+      title: 'Tugas filter',
+      label: const TaskLabel(name: 'Kuliah', colorValue: 0xFF6F9A7E),
+      durationMinutes: 30,
+      priority: TaskPriority.medium,
+      dueDate: DateUtils.dateOnly(DateTime.now()),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CalendarScreen(
+            tasks: [task],
+            onTaskToggle: (_) {},
+            onTaskEdit: (_) {},
+            onTaskDelete: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('calendar-filter')));
+    await tester.pumpAndSettle();
+
+    final dialog = tester.widget<AlertDialog>(find.byType(AlertDialog));
+    expect(dialog.backgroundColor, Colors.white);
+    expect(dialog.surfaceTintColor, Colors.white);
+
+    final checkbox = tester.widget<CheckboxListTile>(
+      find.byType(CheckboxListTile),
+    );
+    expect(checkbox.activeColor, Colors.black);
+    expect(checkbox.checkColor, Colors.white);
+
+    final allButton = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, 'Semua'),
+    );
+    expect(allButton.style!.backgroundColor!.resolve({}), Colors.black);
+    expect(allButton.style!.foregroundColor!.resolve({}), Colors.white);
+    final applyButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Terapkan'),
+    );
+    expect(applyButton.style!.backgroundColor!.resolve({}), Colors.black);
+    expect(applyButton.style!.foregroundColor!.resolve({}), Colors.white);
+  });
+
   testWidgets('focus mode starts and lets the user switch tasks', (
     WidgetTester tester,
   ) async {
