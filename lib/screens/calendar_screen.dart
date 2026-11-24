@@ -71,6 +71,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
   late DateTime _visibleMonth;
   _CalendarPeriod _period = _CalendarPeriod.week;
   Set<String>? _selectedLabels;
+  final Map<String, int> _minuteCache = {};
+  List<Task> _tasksSnapshot = [];
 
   DateTime get _today => DateUtils.dateOnly(DateTime.now());
 
@@ -87,6 +89,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
     super.initState();
     _selectedDate = _today;
     _visibleMonth = DateTime(_selectedDate.year, _selectedDate.month);
+    _tasksSnapshot = List.of(widget.tasks);
+  }
+
+  @override
+  void didUpdateWidget(CalendarScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    var tasksChanged = _tasksSnapshot.length != widget.tasks.length;
+    for (var index = 0; !tasksChanged && index < widget.tasks.length; index++) {
+      tasksChanged = !identical(_tasksSnapshot[index], widget.tasks[index]);
+    }
+    if (tasksChanged) {
+      _minuteCache.clear();
+      _tasksSnapshot = List.of(widget.tasks);
+    }
   }
 
   DateTime _dateOnly(DateTime date) =>
@@ -160,9 +176,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   int _completedMinutesOn(DateTime date) {
-    return _tasksOnDate(date)
-        .where((task) => task.isCompleted)
-        .fold(0, (total, task) => total + task.durationMinutes);
+    final key = '${date.year}-${date.month}-${date.day}';
+    return _minuteCache.putIfAbsent(
+      key,
+      () => _tasksOnDate(date)
+          .where((task) => task.isCompleted)
+          .fold(0, (total, task) => total + task.durationMinutes),
+    );
   }
 
   int _minutesBetween(DateTime start, DateTime end) {
@@ -747,6 +767,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     if (selected == null || !mounted) return;
     setState(() {
+      _minuteCache.clear();
       _selectedLabels = selected.length == labels.length ? null : selected;
     });
   }
@@ -1456,8 +1477,30 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildHabits() {
-    final labelNames = _visibleTasks.map((task) => task.label.name).toSet();
-    if (labelNames.isEmpty) {
+    final visibleTasks = _visibleTasks;
+    final end = _today.add(const Duration(days: 1));
+    final start = end.subtract(const Duration(days: 28));
+    final dates = List.generate(
+      28,
+      (index) => start.add(Duration(days: index)),
+    );
+    final minutesByLabel = <String, List<int>>{};
+
+    for (final task in visibleTasks) {
+      final dailyMinutes = minutesByLabel.putIfAbsent(
+        task.label.name,
+        () => List.filled(dates.length, 0),
+      );
+      if (!task.isCompleted) continue;
+
+      for (var index = 0; index < dates.length; index++) {
+        if (_taskOccursOn(task, dates[index])) {
+          dailyMinutes[index] += task.durationMinutes;
+        }
+      }
+    }
+
+    if (minutesByLabel.isEmpty) {
       return const Text(
         'Belum ada data kebiasaan. Tambahkan tugas untuk melihat progres label.',
         style: TextStyle(
@@ -1468,23 +1511,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
       );
     }
 
-    final end = _today.add(const Duration(days: 1));
-    final start = end.subtract(const Duration(days: 28));
     final habits =
-        labelNames.map((name) {
-          final tasks = _visibleTasks
-              .where((task) => task.label.name == name)
-              .toList();
-          final dailyMinutes = List.generate(28, (index) {
-            final date = start.add(Duration(days: index));
-            return tasks
-                .where((task) => task.isCompleted && _taskOccursOn(task, date))
-                .fold(0, (total, task) => total + task.durationMinutes);
-          });
+        minutesByLabel.entries.map((entry) {
           return _HabitData(
-            label: name,
-            dailyMinutes: dailyMinutes,
-            totalMinutes: dailyMinutes.fold(
+            label: entry.key,
+            dailyMinutes: entry.value,
+            totalMinutes: entry.value.fold(
               0,
               (total, minutes) => total + minutes,
             ),

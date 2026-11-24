@@ -184,7 +184,7 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
     Navigator.pop(
       context,
       Task(
-        id: initialTask?.id ?? now.microsecondsSinceEpoch.toString(),
+        id: initialTask?.id ?? '${now.microsecondsSinceEpoch}-${now.hashCode}',
         title: title,
         label: _selectedLabel,
         durationMinutes: _durationMinutes,
@@ -635,47 +635,31 @@ class _UnderlinedOption extends StatelessWidget {
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.only(bottom: 4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: selected
-                    ? const Color(0xFF09090B)
-                    : const Color(0xFFA1A1AA),
+        child: IntrinsicWidth(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: selected
+                      ? const Color(0xFF09090B)
+                      : const Color(0xFFA1A1AA),
+                ),
               ),
-            ),
-            const SizedBox(height: 3),
-            Container(
-              width: _textWidth(label),
-              height: 2,
-              color: selected
-                  ? const Color(0xFFFBC450)
-                  : const Color(0xFFF4F4F5),
-            ),
-          ],
+              const SizedBox(height: 3),
+              Container(
+                height: 2,
+                color: selected
+                    ? const Color(0xFFFBC450)
+                    : const Color(0xFFF4F4F5),
+              ),
+            ],
+          ),
         ),
       ),
     );
-  }
-
-  double _textWidth(String text) {
-    switch (text) {
-      case '25 Menit':
-        return 48;
-      case '45 Menit':
-      case '60 Menit':
-        return 50;
-      case 'Tinggi':
-        return 34;
-      case 'Sedang':
-      case 'Rendah':
-        return 42;
-      default:
-        return 48;
-    }
   }
 }

@@ -20,20 +20,8 @@ class TaskCard extends StatelessWidget {
     this.onDelete,
   });
 
-  String? get _labelAsset {
-    switch (task.label.name.toLowerCase()) {
-      case 'kuliah':
-        return 'assets/figma/label-kuliah.svg';
-      case 'kerja':
-        return 'assets/figma/label-kerja.svg';
-      default:
-        return null;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final labelAsset = _labelAsset;
     return SizedBox(
       width: double.infinity,
       child: Material(
@@ -112,17 +100,14 @@ class TaskCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Row(
                         children: [
-                          if (labelAsset != null)
-                            SvgPicture.asset(labelAsset, width: 7, height: 7)
-                          else
-                            Container(
-                              width: 7,
-                              height: 7,
-                              decoration: BoxDecoration(
-                                color: Color(task.label.colorValue),
-                                shape: BoxShape.circle,
-                              ),
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              color: Color(task.label.colorValue),
+                              shape: BoxShape.circle,
                             ),
+                          ),
                           const SizedBox(width: 6),
                           Flexible(
                             child: Text(
@@ -130,7 +115,7 @@ class TaskCard extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: AppTextStyles.taskMeta.copyWith(
-                                color: _labelTextColor(task.label.name),
+                                color: AppColors.textSecondary,
                               ),
                             ),
                           ),
@@ -214,17 +199,6 @@ class TaskCard extends StatelessWidget {
         return AppColors.priorityMedium;
       case TaskPriority.low:
         return AppColors.priorityLow;
-    }
-  }
-
-  Color _labelTextColor(String label) {
-    switch (label.toLowerCase()) {
-      case 'kuliah':
-        return const Color(0xFF2F5A42);
-      case 'kerja':
-        return const Color(0xFF2F5480);
-      default:
-        return AppColors.textSecondary;
     }
   }
 }

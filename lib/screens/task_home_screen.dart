@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/task.dart';
+import '../services/task_api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/collapsible_section.dart';
@@ -34,6 +35,16 @@ class _TaskHomeScreenState extends State<TaskHomeScreen> {
   bool _isFocusSessionStarted = false;
   bool _kapanSajaExpanded = false;
   bool _selesaiExpanded = false;
+  final TaskApiService _api = TaskApiService();
+  SharedPreferences? _prefs;
+
+  Future<SharedPreferences> _getPrefs() async {
+    final prefs = _prefs;
+    if (prefs != null) return prefs;
+    final newPrefs = await SharedPreferences.getInstance();
+    _prefs = newPrefs;
+    return newPrefs;
+  }
 
   List<Task> get _todayTasks => _tasks
       .where((task) => task.schedule == TaskSchedule.today && !task.isCompleted)
@@ -75,7 +86,34 @@ class _TaskHomeScreenState extends State<TaskHomeScreen> {
     });
 
     try {
-      final preferences = await SharedPreferences.getInstance();
+      final loadedTasks = await _api.getTasks();
+      final loadedLabels = await _api.getLabels();
+      final labels = [...CreateTaskSheet.defaultLabels];
+      for (final label in loadedLabels) {
+        if (!labels.any(
+          (existing) => existing.name.toLowerCase() == label.name.toLowerCase(),
+        )) {
+          labels.add(label);
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _tasks
+          ..clear()
+          ..addAll(loadedTasks);
+        _labels
+          ..clear()
+          ..addAll(labels);
+        _isLoading = false;
+      });
+    } catch (error) {
+      await _loadFromLocalStorage();
+    }
+  }
+
+  Future<void> _loadFromLocalStorage() async {
+    try {
+      final preferences = await _getPrefs();
       final savedTasks = preferences.getString(_storageKey);
       final savedLabels = preferences.getString(_labelStorageKey);
       final loadedTasks = savedTasks == null
@@ -93,6 +131,7 @@ class _TaskHomeScreenState extends State<TaskHomeScreen> {
           ..clear()
           ..addAll(loadedLabels);
         _isLoading = false;
+        _loadError = null;
       });
     } on FormatException catch (error) {
       if (!mounted) return;
@@ -100,17 +139,10 @@ class _TaskHomeScreenState extends State<TaskHomeScreen> {
         _loadError = 'Data lokal tidak valid: ${error.message}';
         _isLoading = false;
       });
-    } on MissingPluginException {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
-        _loadError =
-            'Penyimpanan belum siap. Tutup aplikasi lalu jalankan ulang.';
-        _isLoading = false;
-      });
-    } on PlatformException catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _loadError = 'Gagal memuat tugas: ${error.message ?? error.code}';
+        _loadError = 'Gagal memuat tugas: $error';
         _isLoading = false;
       });
     }
@@ -121,7 +153,6 @@ class _TaskHomeScreenState extends State<TaskHomeScreen> {
     if (decoded is! List) {
       throw const FormatException('Format daftar tugas tidak dikenali.');
     }
-
     return decoded.map((item) {
       if (item is! Map<String, dynamic>) {
         throw const FormatException(
@@ -137,7 +168,6 @@ class _TaskHomeScreenState extends State<TaskHomeScreen> {
     if (decoded is! List) {
       throw const FormatException('Format daftar label tidak dikenali.');
     }
-
     return decoded.map((item) {
       if (item is! Map<String, dynamic>) {
         throw const FormatException(
@@ -149,63 +179,63 @@ class _TaskHomeScreenState extends State<TaskHomeScreen> {
   }
 
   Future<void> _saveTasks() async {
-    try {
-      final preferences = await SharedPreferences.getInstance();
-      final saved = await preferences.setString(
-        _storageKey,
-        jsonEncode(_tasks.map((task) => task.toJson()).toList()),
-      );
-      if (!saved) _showMessage('Tugas belum berhasil disimpan.');
-    } on MissingPluginException {
-      _showMessage(
-        'Penyimpanan belum siap. Tutup aplikasi lalu jalankan ulang.',
-      );
-    } on PlatformException catch (error) {
-      _showMessage('Gagal menyimpan tugas: ${error.message ?? error.code}');
-    }
+    final preferences = await _getPrefs();
+    await preferences.setString(
+      _storageKey,
+      jsonEncode(_tasks.map((task) => task.toJson()).toList()),
+    );
   }
 
   Future<void> _saveLabels() async {
-    try {
-      final preferences = await SharedPreferences.getInstance();
-      final saved = await preferences.setString(
-        _labelStorageKey,
-        jsonEncode(_labels.map((label) => label.toJson()).toList()),
-      );
-      if (!saved) _showMessage('Label belum berhasil disimpan.');
-    } on MissingPluginException {
-      _showMessage(
-        'Penyimpanan belum siap. Tutup aplikasi lalu jalankan ulang.',
-      );
-    } on PlatformException catch (error) {
-      _showMessage('Gagal menyimpan label: ${error.message ?? error.code}');
-    }
+    final preferences = await _getPrefs();
+    await preferences.setString(
+      _labelStorageKey,
+      jsonEncode(_labels.map((label) => label.toJson()).toList()),
+    );
   }
 
-  void _addLabel(TaskLabel label) {
+  Future<void> _addLabel(TaskLabel label) async {
     final alreadyExists = _labels.any(
       (item) => item.name.toLowerCase() == label.name.toLowerCase(),
     );
     if (alreadyExists) return;
     setState(() => _labels.add(label));
-    _saveLabels();
+    try {
+      await _api.createLabel(label);
+    } catch (error) {
+      await _saveLabels();
+    }
   }
 
-  void _toggleTask(Task task) {
+  Future<void> _toggleTask(Task task) async {
     final index = _tasks.indexWhere((item) => item.id == task.id);
     if (index == -1) return;
 
+    final updatedTask = task.copyWith(isCompleted: !task.isCompleted);
     setState(() {
-      _tasks[index] = task.copyWith(isCompleted: !task.isCompleted);
+      _tasks[index] = updatedTask;
     });
-    _saveTasks();
+    try {
+      await _api.updateTask(updatedTask);
+    } catch (error) {
+      await _saveTasks();
+    }
   }
 
   Future<void> _showAddTaskDialog() async {
     final task = await _showTaskDialog();
     if (task == null || !mounted) return;
     setState(() => _tasks.add(task));
-    _saveTasks();
+    try {
+      final savedTask = await _api.createTask(task);
+      if (!mounted) return;
+      final index = _tasks.indexWhere((item) => item.id == task.id);
+      if (index != -1) {
+        setState(() => _tasks[index] = savedTask);
+      }
+    } catch (error) {
+      await _saveTasks();
+    }
   }
 
   Future<Task?> _showTaskDialog({Task? initialTask}) {
@@ -241,7 +271,11 @@ class _TaskHomeScreenState extends State<TaskHomeScreen> {
     final index = _tasks.indexWhere((item) => item.id == task.id);
     if (index == -1) return;
     setState(() => _tasks[index] = updatedTask);
-    _saveTasks();
+    try {
+      await _api.updateTask(updatedTask);
+    } catch (error) {
+      await _saveTasks();
+    }
   }
 
   Future<void> _confirmDeleteTask(Task task) async {
@@ -265,14 +299,11 @@ class _TaskHomeScreenState extends State<TaskHomeScreen> {
     );
     if (shouldDelete != true || !mounted) return;
     setState(() => _tasks.removeWhere((item) => item.id == task.id));
-    _saveTasks();
-  }
-
-  void _showMessage(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    try {
+      await _api.deleteTask(task.id);
+    } catch (error) {
+      await _saveTasks();
+    }
   }
 
   Widget _buildTaskCards(List<Task> tasks) {

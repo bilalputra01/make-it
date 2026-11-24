@@ -54,9 +54,13 @@ class Task {
   }
 
   factory Task.fromJson(Map<String, dynamic> json) {
+    final id = json['id'];
+    if (id is! String && id is! num) {
+      throw const FormatException('ID tugas tidak valid.');
+    }
     final label = json['label'] as Map<String, dynamic>;
     return Task(
-      id: json['id'] as String,
+      id: id.toString(),
       title: json['title'] as String,
       label: TaskLabel.fromJson(label),
       durationMinutes: json['durationMinutes'] as int,

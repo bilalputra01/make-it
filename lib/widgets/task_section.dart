@@ -9,9 +9,7 @@ class TaskSection extends StatelessWidget {
   final int count;
   final List<Task> tasks;
   final bool showInput;
-  final bool isCollapsible;
   final bool isExpanded;
-  final VoidCallback? onToggleExpand;
   final Function(Task)? onTaskToggle;
   final ValueChanged<Task>? onTaskEdit;
   final ValueChanged<Task>? onTaskDelete;
@@ -23,9 +21,7 @@ class TaskSection extends StatelessWidget {
     required this.count,
     required this.tasks,
     this.showInput = false,
-    this.isCollapsible = false,
     this.isExpanded = true,
-    this.onToggleExpand,
     this.onTaskToggle,
     this.onTaskEdit,
     this.onTaskDelete,
@@ -47,17 +43,14 @@ class TaskSection extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          GestureDetector(
-            onTap: isCollapsible ? onToggleExpand : null,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Row(
-                children: [
-                  Text(title, style: AppTextStyles.sectionHeader),
-                  const Spacer(),
-                  Text('$count', style: AppTextStyles.sectionCount),
-                ],
-              ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Row(
+              children: [
+                Text(title, style: AppTextStyles.sectionHeader),
+                const Spacer(),
+                Text('$count', style: AppTextStyles.sectionCount),
+              ],
             ),
           ),
           if (isExpanded) ...[
